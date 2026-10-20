@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sat.Api/Sat.Api.csproj" />
+    <Project Path="src/Sat.Compartido/Sat.Compartido.csproj" />
+    <Project Path="src/Sat.Web/Sat.Web.csproj" />
+  </Folder>
+</Solution>
