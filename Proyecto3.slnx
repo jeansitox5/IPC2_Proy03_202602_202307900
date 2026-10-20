@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/pruebas/">
+    <Project Path="pruebas/Sat.PruebasConsola/Sat.PruebasConsola.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Sat.Api/Sat.Api.csproj" />
     <Project Path="src/Sat.Compartido/Sat.Compartido.csproj" />
