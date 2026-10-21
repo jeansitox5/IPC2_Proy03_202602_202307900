@@ -1,6 +1,11 @@
-﻿using Sat.Api.Dominio.Entidades;
+﻿using System.Text.Json;
+using Sat.Api.Datos;
+using Sat.Api.Dominio.Entidades;
 using Sat.Api.Dominio.Estructuras;
 using Sat.Api.Dominio.Reglas;
+using Sat.Api.Servicios;
+using Sat.Compartido.Contratos.Entrada;
+using Sat.Compartido.Contratos.Salida;
 
 // Contadores para el resumen final
 int correctas = 0;
@@ -164,6 +169,73 @@ Verificar("al cambiar de día el correlativo reinicia en 1",
 ControlCorrelativo restaurado = new ControlCorrelativo(new DateOnly(2026, 10, 21), 50);
 Verificar("un control restaurado continúa en 51 (no vuelve a 1)",
     restaurado.GenerarCodigo(dia2) == 2026102100000051);
+
+// ---------------------------------------------------------------- Contratos JSON
+Console.WriteLine("=== Contratos JSON ===");
+string jsonRespuesta = JsonSerializer.Serialize(new RespuestaRtu { ContribuyentesNuevos = 2 });
+Verificar("RespuestaRtu usa los nombres exactos del enunciado",
+    jsonRespuesta == "{\"CONTRIBUYENTES_NUEVOS\":2,\"CONTRIBUYENTES_ACTUALIZADOS\":0,\"NITS_INVALIDOS\":0}");
+List<ContribuyenteEntrada>? leidos = JsonSerializer.Deserialize<List<ContribuyenteEntrada>>(
+    "[{\"NIT\": \"7378106\", \"nombre\": \"Empresa ABC, S.A.\"}]");
+Verificar("ContribuyenteEntrada lee \"NIT\" y \"nombre\" del mensaje",
+    leidos != null && leidos[0].Nit == "7378106" && leidos[0].Nombre == "Empresa ABC, S.A.");
+
+// ---------------------------------------------------------------- ServicioRtu + AlmacenDatosJson
+Console.WriteLine("=== ServicioRtu + AlmacenDatosJson ===");
+// Carpeta temporal y única, para no tocar los datos reales de la API
+string carpetaPrueba = Path.Combine(Path.GetTempPath(), "sat_pruebas_" + Guid.NewGuid().ToString("N"));
+AlmacenDatosJson almacen = new AlmacenDatosJson(carpetaPrueba);
+ServicioRtu servicioRtu = new ServicioRtu(almacen);
+
+List<ContribuyenteEntrada> mensajeRtu = new List<ContribuyenteEntrada>
+{
+    new ContribuyenteEntrada { Nit = "7378106", Nombre = "Empresa ABC, S.A." },
+    new ContribuyenteEntrada { Nit = "8338817", Nombre = "Comercial XYZ, S.A." },
+    new ContribuyenteEntrada { Nit = "5123456", Nombre = "Servicios Integrales del Norte" }
+};
+RespuestaRtu r1 = servicioRtu.Procesar(mensajeRtu);
+Verificar("ejemplo del enunciado → 2 nuevos, 0 actualizados, 1 inválido",
+    r1.ContribuyentesNuevos == 2 && r1.ContribuyentesActualizados == 0 && r1.NitsInvalidos == 1);
+
+RespuestaRtu r2 = servicioRtu.Procesar(new List<ContribuyenteEntrada>
+{
+    new ContribuyenteEntrada { Nit = "7378106", Nombre = "Empresa ABC Renovada" }
+});
+Verificar("un NIT existente se actualiza (1 actualizado)", r2.ContribuyentesActualizados == 1);
+Verificar("Listar devuelve 2 contribuyentes", servicioRtu.Listar().Count == 2);
+Verificar("se creó el archivo rtu.json", File.Exists(Path.Combine(carpetaPrueba, "rtu.json")));
+
+// Guardamos también una factura y el correlativo para probar su persistencia
+long codigoPrueba = almacen.Correlativo.GenerarCodigo(new DateTime(2026, 10, 21, 10, 0, 0));
+Factura facturaAprobada = new Factura("A1990", new DateTime(2025, 1, 15, 15, 25, 0), DateTime.Now,
+                                      "7378106", "8338817", 100.00m, 12.00m, 112.00m);
+facturaAprobada.Aprobar(codigoPrueba);
+Factura facturaRechazada = new Factura("A1991", null, DateTime.Now,
+                                       "5123456", "8338817", 100.00m, 13.00m, 113.00m);
+facturaRechazada.AgregarError(TipoError.NitEmisorInvalido);
+facturaRechazada.AgregarError(TipoError.IvaMalCalculado);
+almacen.Facturas.Agregar(facturaAprobada);
+almacen.Facturas.Agregar(facturaRechazada);
+almacen.Guardar();
+
+// Un almacén NUEVO sobre la misma carpeta simula "reiniciar la API"
+AlmacenDatosJson recargado = new AlmacenDatosJson(carpetaPrueba);
+Verificar("tras recargar, el RTU conserva 2 contribuyentes", recargado.Rtu.Cantidad == 2);
+Verificar("tras recargar, conserva el nombre actualizado",
+    recargado.Rtu.Buscar("7378106")?.Nombre == "Empresa ABC Renovada");
+Verificar("tras recargar, conserva las 2 facturas", recargado.Facturas.Cantidad == 2);
+Verificar("tras recargar, A1990 sigue aprobada", recargado.Facturas.ReferenciaYaAprobada("A1990"));
+List<Factura> todas = recargado.Facturas.ObtenerTodas();
+Verificar("tras recargar, la rechazada conserva sus 2 errores", todas[1].Errores.Count == 2);
+Verificar("tras recargar, el correlativo continúa en 2",
+    recargado.Correlativo.GenerarCodigo(new DateTime(2026, 10, 21, 11, 0, 0)) == 2026102100000002);
+
+recargado.Inicializar();
+Verificar("Inicializar vacía el RTU y las facturas",
+    recargado.Rtu.Cantidad == 0 && recargado.Facturas.Cantidad == 0);
+Verificar("Inicializar borra los archivos", !File.Exists(Path.Combine(carpetaPrueba, "rtu.json")));
+
+Directory.Delete(carpetaPrueba, true); // limpieza de la carpeta temporal
 
 // ---------------------------------------------------------------- Resumen
 Console.WriteLine();
