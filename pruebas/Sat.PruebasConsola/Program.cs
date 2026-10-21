@@ -237,6 +237,105 @@ Verificar("Inicializar borra los archivos", !File.Exists(Path.Combine(carpetaPru
 
 Directory.Delete(carpetaPrueba, true); // limpieza de la carpeta temporal
 
+// ---------------------------------------------------------------- ServicioAutorizacion
+Console.WriteLine("=== ServicioAutorizacion ===");
+string carpetaAut = Path.Combine(Path.GetTempPath(), "sat_pruebas_" + Guid.NewGuid().ToString("N"));
+AlmacenDatosJson almacenAut = new AlmacenDatosJson(carpetaAut);
+new ServicioRtu(almacenAut).Procesar(mensajeRtu); // RTU con 7378106 y 8338817
+ServicioAutorizacion servicioAut = new ServicioAutorizacion(almacenAut);
+
+// Prefijo del código de hoy: yyyymmdd × 10^8 (el servicio usa la fecha actual)
+long prefijoHoy = long.Parse(DateTime.Now.ToString("yyyyMMdd")) * 100_000_000L;
+
+// Función local: crea una solicitud válida; cada prueba cambia solo lo que necesita
+FacturaEntrada Solicitud(string referencia, string emisor = "7378106", string receptor = "8338817",
+                         decimal valor = 100.00m, decimal iva = 12.00m, decimal total = 112.00m,
+                         string tiempo = "Guatemala, 15/01/2025 15:25 hrs.")
+{
+    return new FacturaEntrada
+    {
+        Tiempo = tiempo, Referencia = referencia, NitEmisor = emisor, NitReceptor = receptor,
+        Valor = valor, Iva = iva, Total = total
+    };
+}
+
+// a) Ejemplo del enunciado: 2 facturas correctas
+RespuestaAutorizaciones ra = servicioAut.Procesar(new List<FacturaEntrada>
+{
+    Solicitud("A1990"),
+    Solicitud("A1991", valor: 200.00m, iva: 24.00m, total: 224.00m)
+});
+Verificar("ejemplo del enunciado → 2 aprobadas", ra.Resultado.Aprobadas == 2);
+Verificar("detalle con 2 aprobaciones en orden",
+    ra.Resultado.Detalle.Count == 2 && ra.Resultado.Detalle[0].Referencia == "A1990");
+Verificar("códigos yyyymmdd00000001 y yyyymmdd00000002",
+    ra.Resultado.Detalle[0].CodigoAprobacion == prefijoHoy + 1
+    && ra.Resultado.Detalle[1].CodigoAprobacion == prefijoHoy + 2);
+
+// b) Cada tipo de error por separado
+RespuestaAutorizaciones rb = servicioAut.Procesar(new List<FacturaEntrada>
+{
+    Solicitud("B002", emisor: "1234560"),                          // emisor válido pero no está en el RTU
+    Solicitud("B003", receptor: "576002K"),                        // receptor válido pero no está en el RTU
+    Solicitud("B004", emisor: "5123456"),                          // emisor con NIT inválido
+    Solicitud("B005", iva: 13.00m, total: 113.00m),                // IVA mal calculado
+    Solicitud("B006", total: 115.00m),                             // TOTAL mal calculado
+    Solicitud("A1990"),                                            // referencia ya aprobada
+    Solicitud("B007", tiempo: "Guatemala, 31/02/2025 09:35 hrs.")  // fecha imposible
+});
+Verificar("ninguna de las 7 solicitudes con error se aprueba", rb.Resultado.Aprobadas == 0);
+Verificar("1 rechazada por NIT emisor inexistente", rb.Resultado.RechazadasPorNitEmisorInexistente == 1);
+Verificar("1 rechazada por NIT receptor inexistente", rb.Resultado.RechazadasPorNitReceptorInexistente == 1);
+Verificar("detalleAprobaciones queda vacío", rb.Resultado.Detalle.Count == 0);
+
+// Revisamos los errores registrados en el libro (las últimas 7 facturas)
+List<Factura> libroAut = almacenAut.Facturas.ObtenerTodas();
+Verificar("B002 → NitEmisorInexistente", libroAut[2].TieneError(TipoError.NitEmisorInexistente));
+Verificar("B003 → NitReceptorInexistente", libroAut[3].TieneError(TipoError.NitReceptorInexistente));
+Verificar("B004 → NitEmisorInvalido (y NO inexistente)",
+    libroAut[4].TieneError(TipoError.NitEmisorInvalido) && !libroAut[4].TieneError(TipoError.NitEmisorInexistente));
+Verificar("B005 → solo IvaMalCalculado (TOTAL coherente con su IVA)",
+    libroAut[5].Errores.Count == 1 && libroAut[5].TieneError(TipoError.IvaMalCalculado));
+Verificar("B006 → TotalMalCalculado", libroAut[6].TieneError(TipoError.TotalMalCalculado));
+Verificar("A1990 repetida → ReferenciaDuplicada", libroAut[7].TieneError(TipoError.ReferenciaDuplicada));
+Verificar("B007 → FormatoInvalido y sin fecha de emisión",
+    libroAut[8].TieneError(TipoError.FormatoInvalido) && libroAut[8].FechaEmision == null);
+
+// c) Una referencia rechazada se puede reenviar corregida (decisión D4)
+RespuestaAutorizaciones rc = servicioAut.Procesar(new List<FacturaEntrada> { Solicitud("B005") });
+Verificar("B005 corregida se aprueba con el código 3 del día",
+    rc.Resultado.Aprobadas == 1 && rc.Resultado.Detalle[0].CodigoAprobacion == prefijoHoy + 3);
+
+// d) Duplicado dentro del MISMO mensaje: la primera se aprueba, la segunda no
+RespuestaAutorizaciones rd = servicioAut.Procesar(new List<FacturaEntrada> { Solicitud("C001"), Solicitud("C001") });
+Verificar("C001 dos veces en un mismo mensaje → solo 1 aprobada", rd.Resultado.Aprobadas == 1);
+
+// e) La respuesta respeta los nombres del enunciado
+string jsonAut = JsonSerializer.Serialize(rc);
+Verificar("JSON con resultadoAutorizaciones y nombres exactos",
+    jsonAut.Contains("\"resultadoAutorizaciones\"")
+    && jsonAut.Contains("\"cantidadAutorizacionesAprobadas\":1")
+    && jsonAut.Contains("\"cantidadAutorizacionesRechazadasPorNitEmisorInexistente\":0")
+    && jsonAut.Contains("\"cantidadAutorizacionesRechazadasPorNitReceptorInexistente\":0")
+    && jsonAut.Contains("\"detalleAprobaciones\":[{\"referencia\":\"B005\",\"codigoAprobacion\":" + (prefijoHoy + 3) + "}]"));
+
+// f) FacturaEntrada lee el JSON del enunciado (incluso con VALOR entre comillas)
+List<FacturaEntrada>? solicitudesLeidas = JsonSerializer.Deserialize<List<FacturaEntrada>>(
+    "[{\"TIEMPO\": \"Guatemala, 15/01/2025 15:25 hrs.\", \"REFERENCIA\": \"A1990\", " +
+    "\"NIT_EMISOR\": \"7378106\", \"NIT_RECEPTOR\": \"8338817\", \"VALOR\": \"100.00\", \"IVA\": 12.00, \"TOTAL\": 112.00}]");
+Verificar("FacturaEntrada lee TIEMPO, REFERENCIA, NITs y montos",
+    solicitudesLeidas != null && solicitudesLeidas[0].NitReceptor == "8338817"
+    && solicitudesLeidas[0].Valor == 100.00m && solicitudesLeidas[0].Total == 112.00m);
+
+// g) Persistencia: tras "reiniciar", el correlativo continúa
+AlmacenDatosJson almacenAut2 = new AlmacenDatosJson(carpetaAut);
+RespuestaAutorizaciones rg = new ServicioAutorizacion(almacenAut2).Procesar(
+    new List<FacturaEntrada> { Solicitud("D001") });
+Verificar("tras reiniciar, el siguiente código es el 5 del día",
+    rg.Resultado.Detalle[0].CodigoAprobacion == prefijoHoy + 5);
+
+Directory.Delete(carpetaAut, true);
+
 // ---------------------------------------------------------------- Resumen
 Console.WriteLine();
 Console.WriteLine($"Resultado: {correctas} correctas, {fallidas} fallidas.");

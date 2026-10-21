@@ -13,6 +13,7 @@ string carpetaDatos = Path.Combine(builder.Environment.ContentRootPath, nombreCa
 // Singleton = UNA sola instancia para toda la vida de la API (todos comparten los mismos datos)
 builder.Services.AddSingleton<IAlmacenDatos>(new AlmacenDatosJson(carpetaDatos));
 builder.Services.AddSingleton<ServicioRtu>();
+builder.Services.AddSingleton<ServicioAutorizacion>();
 
 // ---------------------------------------------------------------- Aplicación
 var app = builder.Build();
