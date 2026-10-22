@@ -1,12 +1,26 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
+using Sat.Compartido.Contratos.Consultas;
+using Sat.Web.Servicios;
 
 namespace Sat.Web.Pages;
 
-public class IndexModel : PageModel
+/// <summary>
+/// Página de inicio: presenta el sistema y verifica si la API está disponible.
+/// </summary>
+public class IndexModel : PaginaApiModel
 {
-    public void OnGet()
-    {
+    public bool ApiConectada { get; private set; }
+    public int CantidadContribuyentes { get; private set; }
 
+    public IndexModel(ClienteApiSat api) : base(api)
+    {
+    }
+
+    public async Task OnGetAsync()
+    {
+        ApiConectada = await IntentarAsync(async () =>
+        {
+            List<ContribuyenteSalida> contribuyentes = await Api.ListarContribuyentesAsync();
+            CantidadContribuyentes = contribuyentes.Count;
+        });
     }
 }

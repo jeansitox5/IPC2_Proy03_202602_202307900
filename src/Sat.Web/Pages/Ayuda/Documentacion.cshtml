@@ -1,0 +1,69 @@
+@page
+@model Sat.Web.Pages.Ayuda.DocumentacionModel
+@{
+    ViewData["Title"] = "Documentación";
+}
+
+<h1>Documentación del programa</h1>
+
+<div class="mb-4">
+    @if (Model.ExisteEnsayo)
+    {
+        <a class="btn btn-primary" href="@Sat.Web.Pages.Ayuda.DocumentacionModel.RutaEnsayo" target="_blank">
+            Abrir el ensayo (PDF)
+        </a>
+    }
+    else
+    {
+        <div class="alert alert-info mb-0">El ensayo en PDF estará disponible en la versión final.</div>
+    }
+</div>
+
+<h2 class="h4">Descripción general</h2>
+<p>
+    La solución está formada por <strong>dos programas</strong> que se comunican por HTTP con mensajes JSON:
+</p>
+<ul>
+    <li><strong>Servicio 2 – Sat.Api</strong> (ASP.NET Core Web API, puerto 5100): recibe los mensajes, valida,
+        autoriza las facturas con un código <code>yyyymmdd########</code> y guarda los datos en archivos JSON.</li>
+    <li><strong>Programa 1 – Sat.Web</strong> (Razor Pages, puerto 5200): este simulador, que envía archivos
+        a la API y muestra sus respuestas.</li>
+    <li><strong>Sat.Compartido</strong>: biblioteca con las clases de los mensajes JSON que usan ambos programas.</li>
+</ul>
+
+<h2 class="h4">Cómo ejecutar</h2>
+<ol>
+    <li>Terminal 1: <code>dotnet run --project src/Sat.Api</code></li>
+    <li>Terminal 2: <code>dotnet run --project src/Sat.Web</code></li>
+    <li>Abrir <code>http://localhost:5200</code> en el navegador.</li>
+</ol>
+
+<h2 class="h4">Endpoints de la API</h2>
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Método</th>
+            <th>Ruta</th>
+            <th>Descripción</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td>POST</td><td><code>/api/rtu</code></td><td>Actualiza el RTU con un arreglo de contribuyentes.</td></tr>
+        <tr><td>GET</td><td><code>/api/rtu</code></td><td>Lista los contribuyentes registrados.</td></tr>
+        <tr><td>POST</td><td><code>/api/procesar</code></td><td>Procesa solicitudes de autorización de facturas.</td></tr>
+        <tr><td>GET</td><td><code>/api/consultadatos</code></td><td>Facturas emitidas o recibidas por un NIT en un rango de fechas.</td></tr>
+        <tr><td>GET</td><td><code>/api/resumeniva</code></td><td>IVA emitido y recibido por NIT en una fecha.</td></tr>
+        <tr><td>GET</td><td><code>/api/resumenrango</code></td><td>Valor autorizado por fecha (total o sin IVA).</td></tr>
+        <tr><td>GET</td><td><code>/api/reporte</code></td><td>Reporte de facturas recibidas y errores por fecha.</td></tr>
+        <tr><td>POST</td><td><code>/api/inicializar</code></td><td>Elimina todos los datos del sistema.</td></tr>
+    </tbody>
+</table>
+
+<h2 class="h4">Reglas de validación de facturas</h2>
+<ul>
+    <li><strong>NIT:</strong> dígito verificador con el algoritmo de módulo 11 (puede ser <code>K</code>).</li>
+    <li><strong>RTU:</strong> el emisor y el receptor deben existir en el Registro Tributario Unificado.</li>
+    <li><strong>IVA:</strong> <code>REDONDEAR(VALOR × 0.12, 2)</code>. <strong>TOTAL:</strong> <code>VALOR + IVA</code>.</li>
+    <li><strong>REFERENCIA:</strong> única entre las facturas aprobadas.</li>
+    <li><strong>TIEMPO:</strong> la fecha y la hora se extraen con una expresión regular; el resto del texto se ignora.</li>
+</ul>

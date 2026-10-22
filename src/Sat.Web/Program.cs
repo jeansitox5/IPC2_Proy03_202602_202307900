@@ -1,23 +1,28 @@
+using Sat.Web.Servicios;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// ---------------------------------------------------------------- Servicios
 builder.Services.AddRazorPages();
 
+// Cliente HTTP tipado: cada vez que una página pida un ClienteApiSat,
+// recibirá uno con su HttpClient apuntando a la URL de la API (appsettings.json)
+string urlApi = builder.Configuration["ApiSat:UrlBase"] ?? "http://localhost:5100/";
+builder.Services.AddHttpClient<ClienteApiSat>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi);
+    cliente.Timeout = TimeSpan.FromSeconds(30);
+});
+
+// ---------------------------------------------------------------- Aplicación
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-
 app.UseRouting();
-
-app.UseAuthorization();
 
 app.MapStaticAssets();
 app.MapRazorPages()

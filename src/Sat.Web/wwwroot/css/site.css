@@ -29,3 +29,30 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+/* ------------------------------------------------------------ Estilos propios del proyecto */
+
+/* Número grande dentro de las tarjetas de resumen */
+.numero {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Bloques de JSON (respuestas y contenido enviado) */
+pre.json {
+  max-height: 420px;
+  overflow: auto;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  font-size: 0.85rem;
+}
+
+/* Títulos de los bloques plegables <details> */
+details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}

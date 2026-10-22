@@ -1,10 +1,54 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Inicio";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<h1 class="mb-1">Autorización de Documentos Tributarios Electrónicos</h1>
+<p class="text-muted mb-4">
+    Simulador (Programa 1) para probar el servicio de autorización de DTE de la SAT (Servicio 2).
+</p>
+
+@* Estado de la conexión con la API *@
+@if (Model.ApiConectada)
+{
+    <div class="alert alert-success">
+        <strong>API conectada.</strong> Contribuyentes registrados en el RTU: @Model.CantidadContribuyentes
+    </div>
+}
+else
+{
+    <div class="alert alert-danger">
+        <strong>API no disponible.</strong> @Model.Error
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5 card-title">Enviar mensaje</h2>
+                <p class="card-text">Cargue archivos JSON para actualizar el RTU o solicitar autorizaciones de facturas.</p>
+                <a class="btn btn-primary" asp-page="/Enviar">Ir a Enviar mensaje</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5 card-title">Ayuda</h2>
+                <p class="card-text">Información del estudiante y documentación del programa.</p>
+                <a class="btn btn-outline-primary" asp-page="/Ayuda/Documentacion">Ver documentación</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-warning">
+            <div class="card-body">
+                <h2 class="h5 card-title">Inicializar</h2>
+                <p class="card-text">Devuelve el sistema a su estado inicial, sin datos.</p>
+                <a class="btn btn-outline-warning" asp-page="/Inicializar">Ir a Inicializar</a>
+            </div>
+        </div>
+    </div>
 </div>

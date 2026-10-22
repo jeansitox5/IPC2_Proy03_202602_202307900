@@ -1,0 +1,32 @@
+@page
+@model InicializarModel
+@{
+    ViewData["Title"] = "Inicializar";
+}
+
+<h1>Inicializar sistema</h1>
+<p>
+    Esta opción envía un mensaje a la API para devolver el sistema a su <strong>estado inicial</strong>:
+    se eliminan todos los contribuyentes del RTU, todas las facturas y el correlativo de autorizaciones.
+</p>
+
+<div class="alert alert-warning">
+    <strong>Atención:</strong> esta acción no se puede deshacer.
+</div>
+
+<form method="post">
+    <button type="submit" class="btn btn-danger"
+            onclick="return confirm('¿Seguro que desea eliminar TODOS los datos del sistema?');">
+        Inicializar sistema
+    </button>
+</form>
+
+@if (Model.Mensaje != null)
+{
+    <div class="alert alert-success mt-4">@Model.Mensaje</div>
+}
+
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger mt-4">@Model.Error</div>
+}

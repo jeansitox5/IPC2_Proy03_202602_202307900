@@ -1,0 +1,151 @@
+@page
+@model EnviarModel
+@{
+    ViewData["Title"] = "Enviar mensaje";
+}
+
+<h1>Enviar mensaje</h1>
+<p class="text-muted">
+    Seleccione un archivo <code>.json</code> con una o varias solicitudes. El contenido se envía a la API sin modificaciones.
+</p>
+
+@* ---------------------------------------------------------------- Formulario *@
+<form method="post" enctype="multipart/form-data" class="card card-body mb-4">
+    <div class="mb-3">
+        <span class="form-label fw-semibold d-block">Tipo de mensaje</span>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" asp-for="TipoMensaje" value="@EnviarModel.TipoRtu" id="tipoRtu" />
+            <label class="form-check-label" for="tipoRtu">Actualización del RTU (contribuyentes)</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" asp-for="TipoMensaje" value="@EnviarModel.TipoAutorizaciones" id="tipoAutorizaciones" />
+            <label class="form-check-label" for="tipoAutorizaciones">Solicitudes de autorización de facturas</label>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Archivo" class="form-label fw-semibold">Archivo JSON</label>
+        <input asp-for="Archivo" type="file" accept=".json" class="form-control" />
+    </div>
+
+    <div>
+        <button type="submit" class="btn btn-primary">Enviar a la API</button>
+    </div>
+</form>
+
+@* ---------------------------------------------------------------- Error *@
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+@* ---------------------------------------------------------------- Resultado del RTU *@
+@if (Model.RespuestaRtu != null)
+{
+    <h2 class="h4">Resultado: actualización del RTU</h2>
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <div class="numero text-success">@Model.RespuestaRtu.ContribuyentesNuevos</div>
+                    <div>Contribuyentes nuevos</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <div class="numero text-primary">@Model.RespuestaRtu.ContribuyentesActualizados</div>
+                    <div>Contribuyentes actualizados</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <div class="numero text-danger">@Model.RespuestaRtu.NitsInvalidos</div>
+                    <div>NITs inválidos</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ---------------------------------------------------------------- Resultado de autorizaciones *@
+@if (Model.RespuestaAutorizaciones != null)
+{
+    ResultadoAutorizaciones resultado = Model.RespuestaAutorizaciones.Resultado;
+
+    <h2 class="h4">Resultado: solicitudes de autorización</h2>
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <div class="numero text-success">@resultado.Aprobadas</div>
+                    <div>Autorizaciones aprobadas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <div class="numero text-danger">@resultado.RechazadasPorNitEmisorInexistente</div>
+                    <div>Rechazadas: NIT emisor inexistente</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <div class="numero text-danger">@resultado.RechazadasPorNitReceptorInexistente</div>
+                    <div>Rechazadas: NIT receptor inexistente</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 class="h5">Detalle de aprobaciones</h3>
+    @if (resultado.Detalle.Count == 0)
+    {
+        <p class="text-muted">Ninguna solicitud fue aprobada.</p>
+    }
+    else
+    {
+        <table class="table table-striped table-sm w-auto">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Referencia</th>
+                    <th>Código de aprobación</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < resultado.Detalle.Count; i++)
+                {
+                    <tr>
+                        <td>@(i + 1)</td>
+                        <td>@resultado.Detalle[i].Referencia</td>
+                        <td><code>@resultado.Detalle[i].CodigoAprobacion</code></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@* ---------------------------------------------------------------- JSON de respuesta y contenido enviado *@
+@if (Model.RespuestaJson != null)
+{
+    <details open class="mb-3">
+        <summary>Respuesta JSON de la API</summary>
+        <pre class="json">@Model.RespuestaJson</pre>
+    </details>
+}
+
+@if (Model.ContenidoEnviado != null)
+{
+    <details class="mb-3">
+        <summary>Contenido enviado (@Model.NombreArchivo)</summary>
+        <pre class="json">@Model.ContenidoEnviado</pre>
+    </details>
+}
