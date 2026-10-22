@@ -43,10 +43,15 @@
 {
     ResumenRangoRespuesta r = Model.Resultado;
 
-    <h2 class="h4">
-        @Model.DescripcionTipo
-        <small class="text-muted">· del @r.Desde.ToString("dd/MM/yyyy") al @r.Hasta.ToString("dd/MM/yyyy")</small>
-    </h2>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h2 class="h4 mb-0">
+            @Model.DescripcionTipo
+            <small class="text-muted">· del @r.Desde.ToString("dd/MM/yyyy") al @r.Hasta.ToString("dd/MM/yyyy")</small>
+        </h2>
+        <a class="btn btn-outline-danger" asp-page-handler="Pdf"
+           asp-route-Desde="@Model.Desde?.ToString("yyyy-MM-dd")" asp-route-Hasta="@Model.Hasta?.ToString("yyyy-MM-dd")"
+           asp-route-Tipo="@Model.Tipo">Descargar PDF</a>
+    </div>
 
     @if (r.Fechas.Count == 0)
     {
@@ -80,4 +85,13 @@
             </tfoot>
         </table>
     }
+}
+
+@* ---------------------------------------------------------------- Gráfica *@
+@if (Model.GraficaSvg != null)
+{
+    <h3 class="h5 mt-4">Gráfica</h3>
+    <div class="card card-body grafica">
+        @Html.Raw(Model.GraficaSvg)
+    </div>
 }

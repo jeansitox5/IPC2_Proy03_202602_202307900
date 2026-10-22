@@ -30,6 +30,13 @@
 
 @if (Model.Resultado != null)
 {
+    <div class="mb-3">
+        <a class="btn btn-outline-danger" asp-page-handler="Pdf"
+           asp-route-Desde="@Model.Desde?.ToString("yyyy-MM-dd")" asp-route-Hasta="@Model.Hasta?.ToString("yyyy-MM-dd")">
+            Descargar PDF
+        </a>
+    </div>
+
     @if (Model.Resultado.Fechas.Count == 0)
     {
         <p class="text-muted">No se recibieron facturas en ese rango.</p>

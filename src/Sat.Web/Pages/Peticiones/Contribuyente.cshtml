@@ -55,10 +55,17 @@
 {
     ConsultaContribuyenteRespuesta r = Model.Resultado;
 
-    <h2 class="h4">
-        @r.Nit — @r.Nombre
-        <small class="text-muted">· facturas @r.Tipo del @r.Desde.ToString("dd/MM/yyyy") al @r.Hasta.ToString("dd/MM/yyyy")</small>
-    </h2>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h2 class="h4 mb-0">
+            @r.Nit — @r.Nombre
+            <small class="text-muted">· facturas @r.Tipo del @r.Desde.ToString("dd/MM/yyyy") al @r.Hasta.ToString("dd/MM/yyyy")</small>
+        </h2>
+        <a class="btn btn-outline-danger" asp-page-handler="Pdf"
+           asp-route-Nit="@Model.Nit" asp-route-Tipo="@Model.Tipo"
+           asp-route-Desde="@Model.Desde?.ToString("yyyy-MM-dd")" asp-route-Hasta="@Model.Hasta?.ToString("yyyy-MM-dd")">
+            Descargar PDF
+        </a>
+    </div>
 
     @if (r.Fechas.Count == 0)
     {

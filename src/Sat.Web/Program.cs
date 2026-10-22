@@ -14,6 +14,10 @@ builder.Services.AddHttpClient<ClienteApiSat>(cliente =>
     cliente.Timeout = TimeSpan.FromSeconds(30);
 });
 
+// Generadores de gráficas (SVG) y reportes (PDF): no guardan estado, una sola instancia basta
+builder.Services.AddSingleton<GeneradorGraficas>();
+builder.Services.AddSingleton<GeneradorPdf>();
+
 // ---------------------------------------------------------------- Aplicación
 var app = builder.Build();
 

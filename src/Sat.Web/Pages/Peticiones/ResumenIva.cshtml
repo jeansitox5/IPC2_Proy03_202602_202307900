@@ -28,7 +28,11 @@
 {
     ResumenIvaRespuesta r = Model.Resultado;
 
-    <h2 class="h4">Movimientos del @r.Fecha.ToString("dd/MM/yyyy")</h2>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h2 class="h4 mb-0">Movimientos del @r.Fecha.ToString("dd/MM/yyyy")</h2>
+        <a class="btn btn-outline-danger" asp-page-handler="Pdf"
+           asp-route-Fecha="@Model.Fecha?.ToString("yyyy-MM-dd")">Descargar PDF</a>
+    </div>
 
     @if (r.Nits.Count == 0)
     {
@@ -65,4 +69,13 @@
             </tfoot>
         </table>
     }
+}
+
+@* ---------------------------------------------------------------- Gráfica *@
+@if (Model.GraficaSvg != null)
+{
+    <h3 class="h5 mt-4">Gráfica</h3>
+    <div class="card card-body grafica">
+        @Html.Raw(Model.GraficaSvg)
+    </div>
 }
