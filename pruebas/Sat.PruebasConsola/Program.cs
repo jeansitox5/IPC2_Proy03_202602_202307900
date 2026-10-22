@@ -4,6 +4,7 @@ using Sat.Api.Dominio.Entidades;
 using Sat.Api.Dominio.Estructuras;
 using Sat.Api.Dominio.Reglas;
 using Sat.Api.Servicios;
+using Sat.Compartido.Contratos.Consultas;
 using Sat.Compartido.Contratos.Entrada;
 using Sat.Compartido.Contratos.Salida;
 
@@ -335,6 +336,74 @@ Verificar("tras reiniciar, el siguiente código es el 5 del día",
     rg.Resultado.Detalle[0].CodigoAprobacion == prefijoHoy + 5);
 
 Directory.Delete(carpetaAut, true);
+
+// ---------------------------------------------------------------- ServicioConsultas
+Console.WriteLine("=== ServicioConsultas ===");
+string carpetaCon = Path.Combine(Path.GetTempPath(), "sat_pruebas_" + Guid.NewGuid().ToString("N"));
+AlmacenDatosJson almacenCon = new AlmacenDatosJson(carpetaCon);
+new ServicioRtu(almacenCon).Procesar(mensajeRtu); // RTU con 7378106 y 8338817
+new ServicioAutorizacion(almacenCon).Procesar(new List<FacturaEntrada>
+{
+    Solicitud("A1990"),                                                        // 15/01: 7378106 → 8338817, 100 + 12
+    Solicitud("A1991", valor: 200.00m, iva: 24.00m, total: 224.00m),           // 15/01: 7378106 → 8338817, 200 + 24
+    Solicitud("B001", iva: 13.00m, total: 113.00m),                            // 15/01: rechazada (IVA)
+    Solicitud("A1992", emisor: "8338817", receptor: "7378106", valor: 50.00m, iva: 6.00m, total: 56.00m,
+              tiempo: "Guatemala, 16/01/2025 10:00 hrs."),                      // 16/01: 8338817 → 7378106, 50 + 6
+    Solicitud("B002", emisor: "1234560", tiempo: "Guatemala, 16/01/2025 11:00 hrs.") // 16/01: rechazada (emisor inexistente)
+});
+ServicioConsultas consultas = new ServicioConsultas(almacenCon);
+DateOnly d15 = new DateOnly(2025, 1, 15);
+DateOnly d16 = new DateOnly(2025, 1, 16);
+
+// a) Consultar contribuyente
+ConsultaContribuyenteRespuesta emitidas = consultas.ConsultarContribuyente("7378106", "emitidas", d15, d16);
+Verificar("emitidas por 7378106: solo el 15/01, 2 facturas por 336.00",
+    emitidas.Fechas.Count == 1 && emitidas.Fechas[0].Fecha == d15
+    && emitidas.Fechas[0].Cantidad == 2 && emitidas.Fechas[0].Monto == 336.00m);
+Verificar("emitidas por 7378106: total del rango 336.00 y nombre del RTU",
+    emitidas.MontoTotal == 336.00m && emitidas.Nombre == "Empresa ABC, S.A.");
+Verificar("emitidas por 7378106: listado con 2 facturas (no incluye la rechazada)", emitidas.Facturas.Count == 2);
+ConsultaContribuyenteRespuesta recibidas = consultas.ConsultarContribuyente("737810-6", "RECIBIDAS", d15, d16);
+Verificar("recibidas por 7378106 (NIT con guion y tipo en mayúsculas): 16/01, 1 por 56.00",
+    recibidas.Fechas.Count == 1 && recibidas.Fechas[0].Fecha == d16 && recibidas.MontoTotal == 56.00m);
+Verificar("tipo inválido lanza ArgumentException",
+    LanzaExcepcion(() => consultas.ConsultarContribuyente("7378106", "otro", d15, d16)));
+Verificar("rango invertido lanza ArgumentException",
+    LanzaExcepcion(() => consultas.ConsultarContribuyente("7378106", "emitidas", d16, d15)));
+
+// b) Resumen de IVA por fecha
+ResumenIvaRespuesta iva15 = consultas.ResumenIva(d15);
+Verificar("resumen de IVA del 15/01: 2 NITs", iva15.Nits.Count == 2);
+Verificar("7378106 emitió 36.00 de IVA y no recibió",
+    iva15.Nits[0].Nit == "7378106" && iva15.Nits[0].IvaEmitido == 36.00m && iva15.Nits[0].IvaRecibido == 0m);
+Verificar("8338817 recibió 36.00 de IVA y no emitió",
+    iva15.Nits[1].Nit == "8338817" && iva15.Nits[1].IvaRecibido == 36.00m && iva15.Nits[1].IvaEmitido == 0m);
+
+// c) Resumen por rango
+ResumenRangoRespuesta conIva = consultas.ResumenRango(d15, d16, "total");
+Verificar("rango con IVA: 15/01 = 336.00, 16/01 = 56.00, total 392.00",
+    conIva.Fechas.Count == 2 && conIva.Fechas[0].Monto == 336.00m
+    && conIva.Fechas[1].Monto == 56.00m && conIva.MontoTotal == 392.00m);
+ResumenRangoRespuesta sinIva = consultas.ResumenRango(d15, d16, "siniva");
+Verificar("rango sin IVA: 15/01 = 300.00, 16/01 = 50.00, total 350.00",
+    sinIva.Fechas[0].Monto == 300.00m && sinIva.Fechas[1].Monto == 50.00m && sinIva.MontoTotal == 350.00m);
+
+// d) Reporte de autorizaciones
+ReporteRespuesta reporte = consultas.Reporte(d15, d16);
+ReporteFecha rep15 = reporte.Fechas[0];
+ReporteFecha rep16 = reporte.Fechas[1];
+Verificar("reporte 15/01: 3 recibidas, 1 IVA mal calculado, 2 sin errores",
+    rep15.TotalRecibidas == 3 && rep15.IvaMalCalculado == 1 && rep15.SinErrores == 2);
+Verificar("reporte 15/01: 1 emisor y 1 receptor distintos",
+    rep15.CantidadEmisores == 1 && rep15.CantidadReceptores == 1);
+Verificar("reporte 16/01: 2 recibidas, 1 emisor inexistente, 1 sin errores",
+    rep16.TotalRecibidas == 2 && rep16.NitEmisorInexistente == 1 && rep16.SinErrores == 1);
+Verificar("reporte 16/01: 2 emisores y 2 receptores distintos",
+    rep16.CantidadEmisores == 2 && rep16.CantidadReceptores == 2);
+Verificar("un rango sin facturas devuelve un reporte vacío",
+    consultas.Reporte(new DateOnly(2024, 1, 1), new DateOnly(2024, 12, 31)).Fechas.Count == 0);
+
+Directory.Delete(carpetaCon, true);
 
 // ---------------------------------------------------------------- Resumen
 Console.WriteLine();

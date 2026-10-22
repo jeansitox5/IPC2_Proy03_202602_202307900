@@ -14,6 +14,7 @@ string carpetaDatos = Path.Combine(builder.Environment.ContentRootPath, nombreCa
 builder.Services.AddSingleton<IAlmacenDatos>(new AlmacenDatosJson(carpetaDatos));
 builder.Services.AddSingleton<ServicioRtu>();
 builder.Services.AddSingleton<ServicioAutorizacion>();
+builder.Services.AddSingleton<ServicioConsultas>();
 
 // ---------------------------------------------------------------- Aplicación
 var app = builder.Build();
