@@ -1,0 +1,68 @@
+@page
+@model ResumenIvaModel
+@{
+    ViewData["Title"] = "Resumen de IVA";
+}
+
+<h1>Resumen de IVA por fecha y NIT</h1>
+<p class="text-muted">IVA emitido y recibido por cada contribuyente en las facturas autorizadas de una fecha.</p>
+
+<form method="get" class="card card-body mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label asp-for="Fecha" class="form-label fw-semibold">Fecha</label>
+            <input asp-for="Fecha" type="date" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Consultar</button>
+        </div>
+    </div>
+</form>
+
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+@if (Model.Resultado != null)
+{
+    ResumenIvaRespuesta r = Model.Resultado;
+
+    <h2 class="h4">Movimientos del @r.Fecha.ToString("dd/MM/yyyy")</h2>
+
+    @if (r.Nits.Count == 0)
+    {
+        <p class="text-muted">No hay facturas autorizadas en esa fecha.</p>
+    }
+    else
+    {
+        <table class="table table-striped table-sm w-auto">
+            <thead>
+                <tr>
+                    <th>NIT</th>
+                    <th>Nombre</th>
+                    <th class="text-end">IVA emitido (Q)</th>
+                    <th class="text-end">IVA recibido (Q)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (IvaPorNit fila in r.Nits)
+                {
+                    <tr>
+                        <td>@fila.Nit</td>
+                        <td>@fila.Nombre</td>
+                        <td class="text-end">@fila.IvaEmitido.ToString("N2")</td>
+                        <td class="text-end">@fila.IvaRecibido.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="fw-bold">
+                <tr>
+                    <td colspan="2">Total</td>
+                    <td class="text-end">@r.TotalIvaEmitido.ToString("N2")</td>
+                    <td class="text-end">@r.TotalIvaRecibido.ToString("N2")</td>
+                </tr>
+            </tfoot>
+        </table>
+    }
+}

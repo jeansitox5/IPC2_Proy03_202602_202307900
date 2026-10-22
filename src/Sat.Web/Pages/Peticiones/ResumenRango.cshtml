@@ -1,0 +1,83 @@
+@page
+@model ResumenRangoModel
+@{
+    ViewData["Title"] = "Resumen por rango";
+}
+
+<h1>Resumen por rango de fechas</h1>
+<p class="text-muted">Valor autorizado por fecha, con IVA o sin IVA.</p>
+
+<form method="get" class="card card-body mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label asp-for="Desde" class="form-label fw-semibold">Desde</label>
+            <input asp-for="Desde" type="date" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Hasta" class="form-label fw-semibold">Hasta</label>
+            <input asp-for="Hasta" type="date" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <span class="form-label fw-semibold d-block">Valores</span>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" asp-for="Tipo" value="total" id="tipoTotal" />
+                <label class="form-check-label" for="tipoTotal">Totales (con IVA)</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" asp-for="Tipo" value="siniva" id="tipoSinIva" />
+                <label class="form-check-label" for="tipoSinIva">Sin IVA</label>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Consultar</button>
+        </div>
+    </div>
+</form>
+
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+@if (Model.Resultado != null)
+{
+    ResumenRangoRespuesta r = Model.Resultado;
+
+    <h2 class="h4">
+        @Model.DescripcionTipo
+        <small class="text-muted">· del @r.Desde.ToString("dd/MM/yyyy") al @r.Hasta.ToString("dd/MM/yyyy")</small>
+    </h2>
+
+    @if (r.Fechas.Count == 0)
+    {
+        <p class="text-muted">No hay facturas autorizadas en ese rango.</p>
+    }
+    else
+    {
+        <table class="table table-striped table-sm w-auto">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th class="text-end">Facturas</th>
+                    <th class="text-end">@Model.DescripcionTipo (Q)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (TotalPorFecha fila in r.Fechas)
+                {
+                    <tr>
+                        <td>@fila.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td class="text-end">@fila.Cantidad</td>
+                        <td class="text-end">@fila.Monto.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="fw-bold">
+                <tr>
+                    <td colspan="2">Total del rango</td>
+                    <td class="text-end">@r.MontoTotal.ToString("N2")</td>
+                </tr>
+            </tfoot>
+        </table>
+    }
+}

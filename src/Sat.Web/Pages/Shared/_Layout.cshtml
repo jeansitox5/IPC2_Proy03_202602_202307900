@@ -27,6 +27,16 @@
                             <a class="nav-link" asp-page="/Enviar">Enviar mensaje</a>
                         </li>
                         <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Peticiones</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" asp-page="/Peticiones/Contribuyente">Consultar contribuyente</a></li>
+                                <li><a class="dropdown-item" asp-page="/Peticiones/ResumenIva">Resumen de IVA por fecha y NIT</a></li>
+                                <li><a class="dropdown-item" asp-page="/Peticiones/ResumenRango">Resumen por rango de fechas</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><a class="dropdown-item" asp-page="/Peticiones/Reporte">Reporte de autorizaciones</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Ayuda</a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" asp-page="/Ayuda/Estudiante">Información del estudiante</a></li>
