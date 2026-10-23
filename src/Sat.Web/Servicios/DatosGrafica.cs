@@ -14,6 +14,9 @@ public class DatosGrafica
     public const string ColorRecibido = "#fd7e14";
     public const string ColorValor = "#198754";
 
+    /// <summary>A partir de cuántas fechas se usan etiquetas cortas (dd/MM).</summary>
+    private const int MaximoEtiquetasLargas = 8;
+
     public string Titulo { get; }
     public List<string> Etiquetas { get; } = new List<string>();
     public List<SerieGrafica> Series { get; } = new List<SerieGrafica>();
@@ -49,9 +52,12 @@ public class DatosGrafica
         DatosGrafica datos = new DatosGrafica($"{descripcionTipo} por fecha");
         SerieGrafica valores = new SerieGrafica(descripcionTipo, ColorValor);
 
+        // Con muchas fechas, la etiqueta corta (dd/MM) evita que los textos se encimen
+        string formato = resumen.Fechas.Count > MaximoEtiquetasLargas ? "dd/MM" : "dd/MM/yyyy";
+
         foreach (TotalPorFecha fila in resumen.Fechas)
         {
-            datos.Etiquetas.Add(fila.Fecha.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture));
+            datos.Etiquetas.Add(fila.Fecha.ToString(formato, CultureInfo.InvariantCulture));
             valores.Valores.Add(fila.Monto);
         }
 

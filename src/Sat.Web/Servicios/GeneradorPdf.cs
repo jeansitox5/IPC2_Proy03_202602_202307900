@@ -38,19 +38,24 @@ public class GeneradorPdf
               new double[] { 150, 150, 170 }, new[] { false, true, true }, filas,
               new[] { "Total del rango", r.CantidadTotal.ToString(), Monto(r.MontoTotal) });
 
+        // En el listado se muestra solo la CONTRAPARTE: si son emitidas, el emisor siempre es el NIT consultado
+        bool sonEmitidas = r.Tipo == "emitidas";
+        string encabezadoContraparte = sonEmitidas ? "NIT receptor" : "NIT emisor";
+
         Subtitulo(doc, "Listado de facturas");
         List<string[]> facturas = new List<string[]>();
         foreach (FacturaResumen f in r.Facturas)
         {
             facturas.Add(new[]
             {
-                f.FechaEmision.ToString("dd/MM/yyyy HH:mm"), f.Referencia, f.CodigoAprobacion.ToString(),
-                f.NitEmisor, f.NitReceptor, Monto(f.Valor), Monto(f.Iva), Monto(f.Total)
+                f.FechaEmision.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture), f.Referencia,
+                f.CodigoAprobacion.ToString(), sonEmitidas ? f.NitReceptor : f.NitEmisor,
+                Monto(f.Valor), Monto(f.Iva), Monto(f.Total)
             });
         }
-        Tabla(doc, new[] { "Fecha", "Referencia", "Código aprobación", "NIT emisor", "NIT receptor", "Valor", "IVA", "Total" },
-              new double[] { 76, 56, 92, 60, 60, 56, 50, 62 },
-              new[] { false, false, false, false, false, true, true, true }, facturas, null, 8);
+        Tabla(doc, new[] { "Fecha", "Referencia", "Código aprobación", encabezadoContraparte, "Valor", "IVA", "Total" },
+              new double[] { 72, 92, 82, 74, 64, 62, 66 },
+              new[] { false, false, false, false, true, true, true }, facturas, null, 8);
 
         return doc.Generar();
     }
@@ -72,7 +77,7 @@ public class GeneradorPdf
             filas.Add(new[] { fila.Nit, fila.Nombre, Monto(fila.IvaEmitido), Monto(fila.IvaRecibido) });
         }
         Tabla(doc, new[] { "NIT", "Nombre", "IVA emitido (Q)", "IVA recibido (Q)" },
-              new double[] { 90, 200, 110, 112 }, new[] { false, false, true, true }, filas,
+              new double[] { 120, 170, 110, 112 }, new[] { false, false, true, true }, filas,
               new[] { "Total", "", Monto(r.TotalIvaEmitido), Monto(r.TotalIvaRecibido) });
 
         GraficaBarras(doc, DatosGrafica.DeResumenIva(r));
@@ -217,19 +222,52 @@ public class GeneradorPdf
         double lineaBase = doc.Y + altoFila - 5;
         for (int c = 0; c < celdas.Length; c++)
         {
+            string texto = AjustarACelda(celdas[c], anchos[c] - 8, tamano, out double tamanoCelda);
+
             if (alinearDerecha[c])
             {
-                doc.TextoDerecha(x + anchos[c] - 4, lineaBase, celdas[c], tamano, negrita);
+                doc.TextoDerecha(x + anchos[c] - 4, lineaBase, texto, tamanoCelda, negrita);
             }
             else
             {
-                doc.Texto(x + 4, lineaBase, celdas[c], tamano, negrita);
+                doc.Texto(x + 4, lineaBase, texto, tamanoCelda, negrita);
             }
             x += anchos[c];
         }
 
         doc.Linea(DocumentoPdf.Margen, doc.Y + altoFila, DocumentoPdf.Margen + anchoTotal, doc.Y + altoFila, 0.5, ColorBorde);
         doc.Y += altoFila;
+    }
+
+    /// <summary>
+    /// Hace que un texto quepa en su celda: primero reduce la letra (hasta un mínimo) y,
+    /// si aún no cabe, lo recorta y le agrega "...". Así un NIT o una referencia muy larga
+    /// nunca invade la columna vecina.
+    /// </summary>
+    private static string AjustarACelda(string texto, double anchoDisponible, double tamano, out double tamanoFinal)
+    {
+        const double tamanoMinimo = 5.5;
+        tamanoFinal = tamano;
+
+        double ancho = DocumentoPdf.AnchoTexto(texto, tamano);
+        if (ancho <= anchoDisponible)
+        {
+            return texto;
+        }
+
+        tamanoFinal = Math.Max(tamanoMinimo, tamano * anchoDisponible / ancho);
+        if (DocumentoPdf.AnchoTexto(texto, tamanoFinal) <= anchoDisponible)
+        {
+            return texto;
+        }
+
+        string recortado = texto;
+        while (recortado.Length > 0 && DocumentoPdf.AnchoTexto(recortado + "...", tamanoFinal) > anchoDisponible)
+        {
+            recortado = recortado.Substring(0, recortado.Length - 1);
+        }
+
+        return recortado + "...";
     }
 
     /// <summary>Gráfica de barras (simples o agrupadas) dibujada con rectángulos y líneas del PDF.</summary>
@@ -259,6 +297,7 @@ public class GeneradorPdf
         int grupos = datos.Etiquetas.Count;
         double anchoGrupo = anchoArea / grupos;
         double anchoBarra = Math.Min(45, anchoGrupo * 0.7 / datos.Series.Count);
+        bool mostrarValores = anchoGrupo >= 40;   // con barras angostas, los valores se encimarían
 
         for (int g = 0; g < grupos; g++)
         {
@@ -271,8 +310,11 @@ public class GeneradorPdf
                 double x = inicioGrupo + s * anchoBarra;
 
                 doc.Rectangulo(x, baseY - altoBarra, anchoBarra - 2, altoBarra, datos.Series[s].Color);
-                doc.TextoCentrado(x + (anchoBarra - 2) / 2, baseY - altoBarra - 3,
-                    valor.ToString("N2", CultureInfo.InvariantCulture), 7);
+                if (mostrarValores)
+                {
+                    doc.TextoCentrado(x + (anchoBarra - 2) / 2, baseY - altoBarra - 3,
+                        valor.ToString("N2", CultureInfo.InvariantCulture), 7);
+                }
             }
 
             doc.TextoCentrado(x0 + g * anchoGrupo + anchoGrupo / 2, baseY + 12, datos.Etiquetas[g], 8);

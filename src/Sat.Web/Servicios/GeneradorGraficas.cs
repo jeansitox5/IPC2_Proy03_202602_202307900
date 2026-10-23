@@ -18,6 +18,7 @@ public class GeneradorGraficas
     private const double MargenSuperior = 55;
     private const double MargenInferior = 60;
     private const int DivisionesEje = 5;
+    private const double AnchoMinimoParaValores = 55;   // ancho de grupo mínimo para escribir el valor sobre la barra
 
     public string Barras(DatosGrafica datos)
     {
@@ -53,6 +54,7 @@ public class GeneradorGraficas
         {
             double anchoGrupo = anchoArea / grupos;
             double anchoBarra = Math.Min(60, anchoGrupo * 0.7 / series.Count);
+            bool mostrarValores = anchoGrupo >= AnchoMinimoParaValores;   // si las barras son angostas, los valores se encimarían
 
             for (int g = 0; g < grupos; g++)
             {
@@ -66,7 +68,10 @@ public class GeneradorGraficas
                     double y = baseY - altoBarra;
 
                     svg.Append($"<rect x=\"{N(x)}\" y=\"{N(y)}\" width=\"{N(anchoBarra - 2)}\" height=\"{N(altoBarra)}\" fill=\"{series[s].Color}\" />");
-                    svg.Append($"<text x=\"{N(x + (anchoBarra - 2) / 2)}\" y=\"{N(y - 4)}\" text-anchor=\"middle\" font-size=\"10\" fill=\"#212529\">{valor.ToString("N2", CultureInfo.InvariantCulture)}</text>");
+                    if (mostrarValores)
+                    {
+                        svg.Append($"<text x=\"{N(x + (anchoBarra - 2) / 2)}\" y=\"{N(y - 4)}\" text-anchor=\"middle\" font-size=\"10\" fill=\"#212529\">{valor.ToString("N2", CultureInfo.InvariantCulture)}</text>");
+                    }
                 }
 
                 // Etiqueta del grupo debajo del eje
